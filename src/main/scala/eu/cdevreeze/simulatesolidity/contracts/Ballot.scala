@@ -38,7 +38,7 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionResult
  *
  * @author Chris de Vreeze
  */
-final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext: FunctionCallContext, val ownAddress: Address) extends SenderAspects {
+final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext: FunctionCallContext, val ownAddress: Address) extends Contract with SenderAspects {
   require(proposalNames.nonEmpty, s"There must be at least one proposal")
   require(proposalNames.distinct.size == proposalNames.size, s"All proposals must have different names")
 
