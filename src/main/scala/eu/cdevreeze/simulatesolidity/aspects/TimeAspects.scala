@@ -18,7 +18,7 @@ package eu.cdevreeze.simulatesolidity.aspects
 
 import java.time.Instant
 
-import eu.cdevreeze.simulatesolidity.soliditytypes.Context
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCallContext
 
 /**
  * Trait to be used by "contract" methods to enforce WHEN a function may be called.
@@ -27,19 +27,19 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.Context
  */
 trait TimeAspects extends ContextAspects {
 
-  final def before[A](time: Instant)(context: Context)(f: () => A) = {
+  final def before[A](time: Instant)(context: FunctionCallContext)(f: () => A) = {
     withRequiredContext(ctx => ctx.now.isBefore(time))(context)(f)
   }
 
-  final def notBefore[A](time: Instant)(context: Context)(f: () => A) = {
+  final def notBefore[A](time: Instant)(context: FunctionCallContext)(f: () => A) = {
     withRequiredContext(ctx => !ctx.now.isBefore(time))(context)(f)
   }
 
-  final def after[A](time: Instant)(context: Context)(f: () => A) = {
+  final def after[A](time: Instant)(context: FunctionCallContext)(f: () => A) = {
     withRequiredContext(ctx => ctx.now.isAfter(time))(context)(f)
   }
 
-  final def notAfter[A](time: Instant)(context: Context)(f: () => A) = {
+  final def notAfter[A](time: Instant)(context: FunctionCallContext)(f: () => A) = {
     withRequiredContext(ctx => !ctx.now.isAfter(time))(context)(f)
   }
 }

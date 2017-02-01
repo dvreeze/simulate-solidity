@@ -16,10 +16,16 @@
 
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
+import java.time.Instant
+
 /**
- * Address. Unlike an address in Solidity, it is just the immutable address, without any mutable
- * state such as a balance. Hence there is no send method on class Address itself.
- *
- * @author Chris de Vreeze
+ * Message.
  */
-final case class Address(val addressValue: Int)
+final class Message(
+    val messageSender: Address,
+    val messageValueInWei: BigInt) {
+
+  require(messageValueInWei >= 0, s"The message value must be non-negative, but got $messageValueInWei instead")
+
+  val now: Instant = Instant.now() // Incorrect, because this must be a block property
+}

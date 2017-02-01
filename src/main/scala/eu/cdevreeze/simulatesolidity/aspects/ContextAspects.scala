@@ -16,7 +16,7 @@
 
 package eu.cdevreeze.simulatesolidity.aspects
 
-import eu.cdevreeze.simulatesolidity.soliditytypes.Context
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCallContext
 
 /**
  * Trait to be used by "contract" methods to enforce that specific requirements on the context hold.
@@ -28,7 +28,7 @@ trait ContextAspects {
   /**
    * Perform function f, but first requiring that the context is allowed, and throwing an exception otherwise.
    */
-  final def withRequiredContext[A](isAllowedContext: Context => Boolean)(context: Context)(f: () => A) = {
+  final def withRequiredContext[A](isAllowedContext: FunctionCallContext => Boolean)(context: FunctionCallContext)(f: () => A) = {
     require(isAllowedContext(context), s"Context $context not allowed")
 
     f()

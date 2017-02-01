@@ -17,9 +17,17 @@
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
 /**
- * Address. Unlike an address in Solidity, it is just the immutable address, without any mutable
- * state such as a balance. Hence there is no send method on class Address itself.
+ * Contract super-type of all "smart contracts".
+ *
+ * Each public method must have a 2nd parameter list with one parameter of type FunctionCallContext,
+ * and a function result wrapped in a FunctionResult object. Each constructor also takes the extra
+ * FunctionCallContext parameter (list). To return a FunctionResult during construction, use a
+ * ContractBuilder, whose build method calls the contract constructor and obeys the same requirements
+ * mentioned above as public contract methods.
  *
  * @author Chris de Vreeze
  */
-final case class Address(val addressValue: Int)
+trait Contract {
+
+  def ownAddress: Address
+}

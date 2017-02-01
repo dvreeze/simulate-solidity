@@ -21,7 +21,9 @@ import scala.collection.immutable
 import eu.cdevreeze.simulatesolidity.aspects.SenderAspects
 import eu.cdevreeze.simulatesolidity.collections.Updater
 import eu.cdevreeze.simulatesolidity.soliditytypes.Address
-import eu.cdevreeze.simulatesolidity.soliditytypes.Context
+import eu.cdevreeze.simulatesolidity.soliditytypes.Contract
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCallContext
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionResult
 
 /**
  * Simulation of Ballot Solidity example.
@@ -36,7 +38,7 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.Context
  *
  * @author Chris de Vreeze
  */
-final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext: Context) extends SenderAspects {
+final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext: FunctionCallContext, val ownAddress: Address) extends SenderAspects {
   require(proposalNames.nonEmpty, s"There must be at least one proposal")
   require(proposalNames.distinct.size == proposalNames.size, s"All proposals must have different names")
 
@@ -57,12 +59,14 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
   /**
    * Gives the given voter the right to vote. Only callable by the chair person.
    */
-  def giveRightToVote(voter: Address)(context: Context): Unit = this.synchronized {
+  def giveRightToVote(voter: Address)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
     withRequiredSender(chairPerson)(context) { () =>
       if (voters.get(voter).forall(v => !v.voted)) {
         // Improvement over the original in order not to break the invariant: the weight never goes down.
         addOrUpdateVoter(voter, v => v.copy(weight = 1.max(v.weight)), addr => Ballot.Voter(addr))
       }
+
+      FunctionResult.fromCallContextOnly(context)
     } ensuring { _ =>
       requireInvariant(context)
     }
@@ -71,25 +75,28 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
   /**
    * Delegates your vote to the given voter.
    */
-  def delegate(to: Address)(context: Context): Boolean = this.synchronized {
+  def delegate(to: Address)(context: FunctionCallContext): FunctionResult[Boolean] = this.synchronized {
     val sender = voters.getOrElse(context.messageSender, Ballot.Voter(context.messageSender))
 
     if (sender.voted) {
-      false
+      FunctionResult.fromCallContextAndResult(context)(false)
     } else {
       val lastDelegate = getLastDelegate(voters.getOrElse(to, Ballot.Voter(to)))(context)
       require(lastDelegate.address != context.messageSender, s"Delegating to message sender ${context.messageSender} not allowed")
+      require(!lastDelegate.votedByDelegation, s"The last delegate must not delegate himself or herself")
 
       addOrUpdateVoter(sender.address, _.copy(delegateOption = Some(lastDelegate.address)), _ => sender)
 
       // Improvement over the original in order not to break the invariant: updating the delegate weight also.
       addOrUpdateVoter(lastDelegate.address, v => v.copy(weight = v.weight + sender.weight), addr => Ballot.Voter(addr))
 
+      // On the EVM, if an exception is thrown at this point, the changes to storage are rolled back to the point before this function call.
+
       // Improvement over the original in order not to break the invariant?
       if (lastDelegate.votedDirectly) {
         updateProposal(lastDelegate.votedProposalIndexOption.get, p => p.copy(voteCount = p.voteCount + sender.weight))
       }
-      true
+      FunctionResult.fromCallContextAndResult(context)(true)
     } ensuring (_ => requireInvariant(context))
   }
 
@@ -97,19 +104,21 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
    * Gives your vote including the ones delegated to you to the given proposal.
    * Returns true if the vote was successful, and false if the vote had already been made earlier.
    */
-  def vote(proposalIdx: Int)(context: Context): Boolean = this.synchronized {
+  def vote(proposalIdx: Int)(context: FunctionCallContext): FunctionResult[Boolean] = this.synchronized {
     require(proposalIdx >= 0 && proposalIdx < proposals.size, s"Proposal index $proposalIdx out of bounds")
 
     val voter = voters.getOrElse(context.messageSender, Ballot.Voter(context.messageSender))
 
     // Improvement over the original in order not to break the invariant: no voting if delegating.
     if (voter.voted) {
-      false
+      FunctionResult.fromCallContextAndResult(context)(false)
     } else {
       addOrUpdateVoter(voter.address, _.vote(proposalIdx), _ => voter)
 
+      // On the EVM, if an exception is thrown at this point, the changes to storage are rolled back to the point before this function call.
+
       updateProposal(proposalIdx, _.vote(voter.weight))
-      true
+      FunctionResult.fromCallContextAndResult(context)(true)
     } ensuring (_ => requireInvariant(context))
   }
 
@@ -122,7 +131,7 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
     winningProposal.name
   }
 
-  private def getLastDelegate(voter: Ballot.Voter)(context: Context): Ballot.Voter = {
+  private def getLastDelegate(voter: Ballot.Voter)(context: FunctionCallContext): Ballot.Voter = {
     if (voter.delegateOption.isEmpty || (voter.delegateOption == Some(context.messageSender))) {
       voter
     } else {
@@ -138,7 +147,7 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
    * The state of the contract instance is treated as a database snapshot, and the invariant
    * contains many database-like checks, such as referential integrity constraints.
    */
-  private[simulatesolidity] def requireInvariant(context: Context): Boolean = {
+  private[simulatesolidity] def requireInvariant(context: FunctionCallContext): Boolean = {
     // Referential integrity, like in a database
 
     assert(voters.forall(kv => kv._2.address == kv._1), s"Corrupt data")

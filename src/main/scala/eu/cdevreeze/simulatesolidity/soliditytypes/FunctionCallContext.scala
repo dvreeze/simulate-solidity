@@ -16,10 +16,22 @@
 
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
+import java.time.Instant
+
 /**
- * Address. Unlike an address in Solidity, it is just the immutable address, without any mutable
- * state such as a balance. Hence there is no send method on class Address itself.
+ * Function call context. See the documentation of trait Contract.
  *
  * @author Chris de Vreeze
  */
-final case class Address(val addressValue: Int)
+final class FunctionCallContext(
+    val accountCollection: AccountCollection,
+    val message: Message) {
+
+  def messageSender: Address = message.messageSender
+
+  def now: Instant = message.now
+
+  def send(from: Address, to: Address, amount: BigInt): Option[FunctionCallContext] = {
+    accountCollection.send(from, to, amount).map(accColl => new FunctionCallContext(accColl, message))
+  }
+}

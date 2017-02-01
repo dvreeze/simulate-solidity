@@ -17,7 +17,7 @@
 package eu.cdevreeze.simulatesolidity.aspects
 
 import eu.cdevreeze.simulatesolidity.soliditytypes.Address
-import eu.cdevreeze.simulatesolidity.soliditytypes.Context
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCallContext
 
 /**
  * Trait to be used by "contract" methods to enforce that only specific senders can successfully invoke
@@ -27,7 +27,11 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.Context
  */
 trait SenderAspects extends ContextAspects {
 
-  final def withRequiredSender[A](allowedSender: Address)(context: Context)(f: () => A) = {
+  final def withRequiredSender[A](allowedSender: Address)(context: FunctionCallContext)(f: () => A) = {
     withRequiredContext(ctx => ctx.messageSender == allowedSender)(context)(f)
+  }
+
+  final def withSenderOtherThan[A](nonAllowedSenders: Set[Address])(context: FunctionCallContext)(f: () => A) = {
+    withRequiredContext(ctx => !nonAllowedSenders.contains(ctx.messageSender))(context)(f)
   }
 }

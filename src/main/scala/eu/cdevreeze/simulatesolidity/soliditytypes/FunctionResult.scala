@@ -17,9 +17,19 @@
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
 /**
- * Address. Unlike an address in Solidity, it is just the immutable address, without any mutable
- * state such as a balance. Hence there is no send method on class Address itself.
+ * Function call result. See the documentation of trait Contract.
  *
  * @author Chris de Vreeze
  */
-final case class Address(val addressValue: Int)
+final class FunctionResult[A](val result: A, val accountCollection: AccountCollection)
+
+object FunctionResult {
+
+  def fromCallContextAndResult[A](context: FunctionCallContext)(result: A): FunctionResult[A] = {
+    new FunctionResult(result, context.accountCollection)
+  }
+
+  def fromCallContextOnly(context: FunctionCallContext): FunctionResult[Unit] = {
+    new FunctionResult((), context.accountCollection)
+  }
+}

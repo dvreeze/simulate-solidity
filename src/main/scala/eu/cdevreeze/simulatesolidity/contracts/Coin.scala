@@ -21,7 +21,9 @@ import java.util.logging.Logger
 import eu.cdevreeze.simulatesolidity.aspects.SenderAspects
 import eu.cdevreeze.simulatesolidity.collections.Updater
 import eu.cdevreeze.simulatesolidity.soliditytypes.Address
-import eu.cdevreeze.simulatesolidity.soliditytypes.Context
+import eu.cdevreeze.simulatesolidity.soliditytypes.Contract
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCallContext
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionResult
 
 /**
  * Simulation of a cryptocurrency Solidity example.
@@ -32,7 +34,8 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.Context
  *
  * @author Chris de Vreeze
  */
-final class Coin(initialBalances: Map[Address, Coin.Balance])(val firstContext: Context) extends SenderAspects {
+final class Coin(
+    initialBalances: Map[Address, Coin.Balance])(val firstContext: FunctionCallContext, val ownAddress: Address) extends Contract with SenderAspects {
   require(initialBalances.nonEmpty, s"There must be at least one balance")
 
   private val logger: Logger = Logger.getGlobal
@@ -49,16 +52,18 @@ final class Coin(initialBalances: Map[Address, Coin.Balance])(val firstContext: 
   /**
    * Mints the given amount for the given receiver. Only callable by the minter.
    */
-  def mint(receiver: Address, amount: Int)(context: Context): Unit = this.synchronized {
+  def mint(receiver: Address, amount: Int)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
     withRequiredSender(minter)(context) { () =>
       updateBalance(receiver, (_.add(amount)))
+
+      FunctionResult.fromCallContextOnly(context)
     }
   }
 
   /**
    * Sends the given amount of money (in "coins") to the given receiver.
    */
-  def send(receiver: Address, amount: Int)(context: Context): Unit = this.synchronized {
+  def send(receiver: Address, amount: Int)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
     require(amount >= 0, s"One cannot send a negative amount of money")
     require(receiver != context.messageSender, s"The receiver must differ from the sender ${context.messageSender}")
 
@@ -68,6 +73,8 @@ final class Coin(initialBalances: Map[Address, Coin.Balance])(val firstContext: 
     updateBalance(receiver, (_.add(amount)))
 
     logger.info(s"Sent $amount from ${context.messageSender} to ${receiver}")
+
+    FunctionResult.fromCallContextOnly(context)
   }
 
   private def updateBalance(address: Address, f: Coin.Balance => Coin.Balance): Unit = {

@@ -16,13 +16,9 @@
 
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
-import java.time.Instant
-
 /**
- * Context passed with each public function of a contract, including the constructor function.
- * It includes the address of the message sender, for example.
+ * Contract builder super-type of all "smart contract builders". See the documentation of trait Contract.
+ *
+ * @author Chris de Vreeze
  */
-final class Context(val messageSender: Address, val messageValue: Int) {
-
-  def now: Instant = Instant.now()
-}
+trait ContractBuilder
