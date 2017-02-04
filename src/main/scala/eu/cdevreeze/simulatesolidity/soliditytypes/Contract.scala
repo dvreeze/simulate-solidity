@@ -30,4 +30,9 @@ package eu.cdevreeze.simulatesolidity.soliditytypes
 trait Contract {
 
   def ownAddress: Address
+
+  def send(to: Address, amount: BigInt)(context: FunctionCallContext): Option[FunctionCallContext] = {
+    context.accountCollection.send(ownAddress, to, amount).
+      map(accColl => new FunctionCallContext(context.message, accColl))
+  }
 }

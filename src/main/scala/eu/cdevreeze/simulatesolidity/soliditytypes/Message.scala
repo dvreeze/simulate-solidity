@@ -19,7 +19,7 @@ package eu.cdevreeze.simulatesolidity.soliditytypes
 import java.time.Instant
 
 /**
- * Message.
+ * Message. If the message contains non-zero WEI, this must be added to the account receiving the message.
  */
 final class Message(
     val messageSender: Address,
@@ -28,4 +28,11 @@ final class Message(
   require(messageValueInWei >= 0, s"The message value must be non-negative, but got $messageValueInWei instead")
 
   val now: Instant = Instant.now() // Incorrect, because this must be a block property
+}
+
+object Message {
+
+  def withoutWei(messageSender: Address): Message = {
+    new Message(messageSender, 0)
+  }
 }

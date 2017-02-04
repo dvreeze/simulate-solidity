@@ -91,7 +91,7 @@ final class OpenAuction(
       // This function can be called again...
       updatePendingReturns(context.messageSender, (_ => 0))
 
-      val newContextOption = context.send(ownAddress, context.messageSender, amount)
+      val newContextOption = this.send(context.messageSender, amount)(context)
 
       if (newContextOption.isEmpty) {
         updatePendingReturns(context.messageSender, (_ => amount))
@@ -112,7 +112,7 @@ final class OpenAuction(
       ended = true
       logger.info(s"Auction has ended. Highest bidder: ${highestBidderOption.getOrElse("")}. Highest bid: $highestBid")
 
-      val newContextOption = context.send(ownAddress, beneficiary, highestBid)
+      val newContextOption = this.send(beneficiary, highestBid)(context)
       require(newContextOption.isDefined, s"Could not send the highest bid to the beneficiary")
 
       FunctionResult.fromCallContextOnly(newContextOption.getOrElse(context))

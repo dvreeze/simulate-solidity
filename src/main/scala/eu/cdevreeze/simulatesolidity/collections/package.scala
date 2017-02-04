@@ -14,24 +14,11 @@
  * limitations under the License.
  */
 
-package eu.cdevreeze.simulatesolidity.soliditytypes
+package eu.cdevreeze.simulatesolidity
 
 /**
- * Function call result. See the documentation of trait Contract.
+ * Utility code for functionally updating some kinds of Scala collections.
  *
  * @author Chris de Vreeze
  */
-final class FunctionResult[+A](
-  val result: A,
-  val accountCollection: AccountCollection) extends HasAccountCollection
-
-object FunctionResult {
-
-  def fromCallContextAndResult[A](context: FunctionCallContext)(result: A): FunctionResult[A] = {
-    new FunctionResult(result, context.accountCollection)
-  }
-
-  def fromCallContextOnly(context: FunctionCallContext): FunctionResult[Unit] = {
-    new FunctionResult((), context.accountCollection)
-  }
-}
+package object collections

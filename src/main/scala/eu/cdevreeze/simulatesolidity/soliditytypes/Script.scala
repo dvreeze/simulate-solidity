@@ -16,29 +16,23 @@
 
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
-import java.time.Instant
+import scala.collection.immutable
 
 /**
- * Function call context. See the documentation of trait Contract.
+ * Script combining several function calls. The "smart contracts" are implicit.
  *
  * @author Chris de Vreeze
  */
-final class FunctionCallContext(
-    val message: Message,
-    val accountCollection: AccountCollection) extends HasAccountCollection {
+final class Script(
+    val initialContext: FunctionCallContext,
+    val functionCalls: immutable.IndexedSeq[FunctionCall]) {
 
-  def messageSender: Address = message.messageSender
+  def run(): HasAccountCollection = {
+    val dummyFuncResult: HasAccountCollection = FunctionResult.fromCallContextOnly(initialContext)
 
-  def now: Instant = message.now
-
-  def withMessage(newMessage: Message): FunctionCallContext = {
-    new FunctionCallContext(newMessage, this.accountCollection)
-  }
-}
-
-object FunctionCallContext {
-
-  def apply(message: Message, accountCollection: AccountCollection): FunctionCallContext = {
-    new FunctionCallContext(message, accountCollection)
+    functionCalls.foldLeft(dummyFuncResult) {
+      case (funcResult, funcCall) =>
+        funcCall(funcResult.accountCollection)
+    }
   }
 }

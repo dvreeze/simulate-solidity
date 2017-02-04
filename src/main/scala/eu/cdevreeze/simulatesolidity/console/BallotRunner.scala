@@ -93,7 +93,7 @@ object BallotRunner {
       case (accFuncResult, task) =>
         val message = new Message(chooseAddress(), 0)
 
-        val ctx: FunctionCallContext = new FunctionCallContext(accFuncResult.accountCollection, message)
+        val ctx: FunctionCallContext = new FunctionCallContext(message, accFuncResult.accountCollection)
 
         task(ctx)
     }
@@ -107,7 +107,7 @@ object BallotRunner {
 
     val message = new Message(initialSender, 0)
 
-    new FunctionCallContext(accountCollection, message)
+    new FunctionCallContext(message, accountCollection)
   }
 
   private def getAccount(addr: Address): Account = {

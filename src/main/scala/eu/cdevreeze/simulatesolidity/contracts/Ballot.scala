@@ -28,10 +28,6 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionResult
 /**
  * Simulation of Ballot Solidity example.
  *
- * It often returns a boolean instead of throwing exceptions in random simulations of this contract,
- * except that the contract invariant quickly throws an exception if anything is wrong with the state
- * of the contract instance.
- *
  * See https://solidity.readthedocs.io/en/develop/solidity-by-example.html.
  *
  * The class is thread-safe.
@@ -61,10 +57,10 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
    */
   def giveRightToVote(voter: Address)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
     withRequiredSender(chairPerson)(context) { () =>
-      if (voters.get(voter).forall(v => !v.voted)) {
-        // Improvement over the original in order not to break the invariant: the weight never goes down.
-        addOrUpdateVoter(voter, v => v.copy(weight = 1.max(v.weight)), addr => Ballot.Voter(addr))
-      }
+      require(voters.get(voter).forall(v => !v.voted), s"Voter ${voter.addressValue} has already directly or indirectly voted")
+
+      // Improvement over the original in order not to break the invariant: the weight never goes down.
+      addOrUpdateVoter(voter, v => v.copy(weight = 1.max(v.weight)), addr => Ballot.Voter(addr))
 
       FunctionResult.fromCallContextOnly(context)
     } ensuring { _ =>
@@ -78,26 +74,27 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
   def delegate(to: Address)(context: FunctionCallContext): FunctionResult[Boolean] = this.synchronized {
     val sender = voters.getOrElse(context.messageSender, Ballot.Voter(context.messageSender))
 
-    if (sender.voted) {
-      FunctionResult.fromCallContextAndResult(context)(false)
-    } else {
-      val lastDelegate = getLastDelegate(voters.getOrElse(to, Ballot.Voter(to)))(context)
-      require(lastDelegate.address != context.messageSender, s"Delegating to message sender ${context.messageSender} not allowed")
-      require(!lastDelegate.votedByDelegation, s"The last delegate must not delegate himself or herself")
+    require(!sender.voted, s"Voter ${sender.address.addressValue} has already directly or indirectly voted")
 
-      addOrUpdateVoter(sender.address, _.copy(delegateOption = Some(lastDelegate.address)), _ => sender)
+    val lastDelegate = getLastDelegate(voters.getOrElse(to, Ballot.Voter(to)))(context)
+    require(lastDelegate.address != context.messageSender, s"Delegating to message sender ${context.messageSender} not allowed")
+    require(!lastDelegate.votedByDelegation, s"The last delegate must not delegate himself or herself")
 
-      // Improvement over the original in order not to break the invariant: updating the delegate weight also.
-      addOrUpdateVoter(lastDelegate.address, v => v.copy(weight = v.weight + sender.weight), addr => Ballot.Voter(addr))
+    addOrUpdateVoter(sender.address, _.copy(delegateOption = Some(lastDelegate.address)), _ => sender)
 
-      // On the EVM, if an exception is thrown at this point, the changes to storage are rolled back to the point before this function call.
+    // Improvement over the original in order not to break the invariant: updating the delegate weight also.
+    addOrUpdateVoter(lastDelegate.address, v => v.copy(weight = v.weight + sender.weight), addr => Ballot.Voter(addr))
 
-      // Improvement over the original in order not to break the invariant?
-      if (lastDelegate.votedDirectly) {
-        updateProposal(lastDelegate.votedProposalIndexOption.get, p => p.copy(voteCount = p.voteCount + sender.weight))
-      }
-      FunctionResult.fromCallContextAndResult(context)(true)
-    } ensuring (_ => requireInvariant(context))
+    // On the EVM, if an exception is thrown at this point, the changes to storage are rolled back to the point before this function call.
+
+    // Improvement over the original in order not to break the invariant?
+    if (lastDelegate.votedDirectly) {
+      updateProposal(lastDelegate.votedProposalIndexOption.get, p => p.copy(voteCount = p.voteCount + sender.weight))
+    }
+
+    FunctionResult.fromCallContextAndResult(context)(true) ensuring { _ =>
+      requireInvariant(context)
+    }
   }
 
   /**

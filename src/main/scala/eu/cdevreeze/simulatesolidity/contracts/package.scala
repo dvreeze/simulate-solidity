@@ -26,6 +26,10 @@ package eu.cdevreeze.simulatesolidity
  * possible, in order to make the attack surface area as small as possible, and to support local reasoning
  * about correctness.
  *
+ * The simulation/design in Scala also helps in finding where the state of the contract is not sufficient
+ * when reasoning about the effect of a function. For example, when receiving or sending WEI, we have to
+ * take multiple accounts into consideration when reasoning about the effect of the function.
+ *
  * Local reasoning about correctness is a very desirable property in general, and essential for smart
  * contracts in a blockchain. After all, if you cannot reason locally about correctness, how can you
  * reason about correctness at all? Solidity is unfortunately not a very good language in this respect,

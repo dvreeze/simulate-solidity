@@ -16,29 +16,12 @@
 
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
-import java.time.Instant
-
 /**
- * Function call context. See the documentation of trait Contract.
+ * Trait promising the containment of an AccountCollection.
  *
  * @author Chris de Vreeze
  */
-final class FunctionCallContext(
-    val message: Message,
-    val accountCollection: AccountCollection) extends HasAccountCollection {
+trait HasAccountCollection {
 
-  def messageSender: Address = message.messageSender
-
-  def now: Instant = message.now
-
-  def withMessage(newMessage: Message): FunctionCallContext = {
-    new FunctionCallContext(newMessage, this.accountCollection)
-  }
-}
-
-object FunctionCallContext {
-
-  def apply(message: Message, accountCollection: AccountCollection): FunctionCallContext = {
-    new FunctionCallContext(message, accountCollection)
-  }
+  def accountCollection: AccountCollection
 }

@@ -16,29 +16,26 @@
 
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
-import java.time.Instant
-
 /**
- * Function call context. See the documentation of trait Contract.
+ * Function call. Function calls can be collected into a "script".
  *
  * @author Chris de Vreeze
  */
-final class FunctionCallContext(
+final class FunctionCall(
     val message: Message,
-    val accountCollection: AccountCollection) extends HasAccountCollection {
+    val funcCall: FunctionCallContext => HasAccountCollection) extends (AccountCollection => HasAccountCollection) {
 
-  def messageSender: Address = message.messageSender
-
-  def now: Instant = message.now
-
-  def withMessage(newMessage: Message): FunctionCallContext = {
-    new FunctionCallContext(newMessage, this.accountCollection)
+  def apply(accountCollection: AccountCollection): HasAccountCollection = {
+    funcCall(FunctionCallContext(message, accountCollection))
   }
 }
 
-object FunctionCallContext {
+object FunctionCall {
 
-  def apply(message: Message, accountCollection: AccountCollection): FunctionCallContext = {
-    new FunctionCallContext(message, accountCollection)
+  def withoutWei(
+    sender: Address,
+    funcCall: FunctionCallContext => HasAccountCollection): FunctionCall = {
+
+    new FunctionCall(Message.withoutWei(sender), funcCall)
   }
 }
