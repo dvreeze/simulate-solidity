@@ -99,24 +99,21 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
 
   /**
    * Gives your vote including the ones delegated to you to the given proposal.
-   * Returns true if the vote was successful, and false if the vote had already been made earlier.
    */
-  def vote(proposalIdx: Int)(context: FunctionCallContext): FunctionResult[Boolean] = this.synchronized {
+  def vote(proposalIdx: Int)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
     require(proposalIdx >= 0 && proposalIdx < proposals.size, s"Proposal index $proposalIdx out of bounds")
 
     val voter = voters.getOrElse(context.messageSender, Ballot.Voter(context.messageSender))
 
     // Improvement over the original in order not to break the invariant: no voting if delegating.
-    if (voter.voted) {
-      FunctionResult.fromCallContextAndResult(context)(false)
-    } else {
-      addOrUpdateVoter(voter.address, _.vote(proposalIdx), _ => voter)
+    require(!voter.voted, s"Voter ${voter.address.addressValue} has already directly or indirectly voted")
 
-      // On the EVM, if an exception is thrown at this point, the changes to storage are rolled back to the point before this function call.
+    addOrUpdateVoter(voter.address, _.vote(proposalIdx), _ => voter)
 
-      updateProposal(proposalIdx, _.vote(voter.weight))
-      FunctionResult.fromCallContextAndResult(context)(true)
-    } ensuring (_ => requireInvariant(context))
+    // On the EVM, if an exception is thrown at this point, the changes to storage are rolled back to the point before this function call.
+
+    updateProposal(proposalIdx, _.vote(voter.weight))
+    FunctionResult.fromCallContextOnly(context) ensuring (_ => requireInvariant(context))
   }
 
   def winningProposal: Ballot.Proposal = this.synchronized {
