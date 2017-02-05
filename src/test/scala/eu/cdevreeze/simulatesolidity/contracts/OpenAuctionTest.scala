@@ -85,10 +85,18 @@ class OpenAuctionTest extends FunSuite {
             Address(3),
             auction.ownAddress,
             auction.withdraw()),
+          FunctionCall.withoutWei(
+            Address(3),
+            auction.ownAddress,
+            auction.withdraw()),
           FunctionCall(
             Message(Address(6), 90),
             auction.ownAddress,
             auction.bid()),
+          FunctionCall.withoutWei(
+            Address(5),
+            auction.ownAddress,
+            auction.withdraw()),
           FunctionCall.withoutWei(
             Address(4),
             auction.ownAddress,
