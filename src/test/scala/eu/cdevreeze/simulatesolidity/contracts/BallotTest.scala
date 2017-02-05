@@ -20,11 +20,19 @@ import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 
-import eu.cdevreeze.simulatesolidity.collections._
-import eu.cdevreeze.simulatesolidity.soliditytypes._
+import eu.cdevreeze.simulatesolidity.collections.Updater
+import eu.cdevreeze.simulatesolidity.soliditytypes.Account
+import eu.cdevreeze.simulatesolidity.soliditytypes.AccountCollection
+import eu.cdevreeze.simulatesolidity.soliditytypes.Address
+import eu.cdevreeze.simulatesolidity.soliditytypes.ContractAccount
+import eu.cdevreeze.simulatesolidity.soliditytypes.ExternalAccount
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCall
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCallContext
+import eu.cdevreeze.simulatesolidity.soliditytypes.Message
+import eu.cdevreeze.simulatesolidity.soliditytypes.Script
 
 /**
- * Schema content test case.
+ * Ballot test case.
  *
  * @author Chris de Vreeze
  */
@@ -44,7 +52,7 @@ class BallotTest extends FunSuite {
   }
 
   private def getAccount(addr: Address): Account = {
-    if (addr.addressValue == 1) {
+    if (addr.addressValue == 2) {
       ContractAccount(addr, 0)
     } else {
       ExternalAccount(addr, 0)
@@ -58,10 +66,18 @@ class BallotTest extends FunSuite {
   test("testGiveRightToVote") {
     val ballot: Ballot = new Ballot(proposalNames)(initialContext, Address(2))
 
-    val ctx = initialContext.withMessage(Message.withoutWei(initialContext.messageSender))
-    ballot.requireInvariant(ctx)
+    ballot.requireInvariant(initialContext)
 
-    val funcResult = ballot.giveRightToVote(Address(3))(ctx)
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            ballot.chairPerson,
+            ballot.ownAddress,
+            ballot.giveRightToVote(Address(3)))))
+
+    val funcResult = script.run()
 
     assertResult(Set(1)) {
       ballot.voters.filterKeys(Set(Address(2), Address(3))).map(_._2.weight).toSet
@@ -70,7 +86,7 @@ class BallotTest extends FunSuite {
       ballot.voters.filterKeys(_.addressValue >= 4).map(_._2.weight).toSet.subsetOf(Set(0))
     }
 
-    assertResult(ctx.accountCollection) {
+    assertResult(initialContext.accountCollection) {
       funcResult.accountCollection
     }
   }
@@ -78,13 +94,22 @@ class BallotTest extends FunSuite {
   test("testGiveRightToVoteTwice") {
     val ballot: Ballot = new Ballot(proposalNames)(initialContext, Address(2))
 
-    val ctx1 = initialContext.withMessage(Message.withoutWei(initialContext.messageSender))
-    ballot.requireInvariant(ctx1)
+    ballot.requireInvariant(initialContext)
 
-    val funcResult1 = ballot.giveRightToVote(Address(3))(ctx1)
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            ballot.chairPerson,
+            ballot.ownAddress,
+            ballot.giveRightToVote(Address(3))),
+          FunctionCall.withoutWei(
+            ballot.chairPerson,
+            ballot.ownAddress,
+            ballot.giveRightToVote(Address(3)))))
 
-    val ctx2 = FunctionCallContext(Message.withoutWei(initialContext.messageSender), funcResult1.accountCollection)
-    val funcResult2 = ballot.giveRightToVote(Address(3))(ctx2)
+    val funcResult = script.run()
 
     // The second call makes no difference
     assertResult(Set(1)) {
@@ -94,19 +119,27 @@ class BallotTest extends FunSuite {
       ballot.voters.filterKeys(_.addressValue >= 4).map(_._2.weight).toSet.subsetOf(Set(0))
     }
 
-    assertResult(ctx1.accountCollection) {
-      funcResult2.accountCollection
+    assertResult(initialContext.accountCollection) {
+      funcResult.accountCollection
     }
   }
 
   test("testGiveRightToVoteIfNotAllowed") {
     val ballot: Ballot = new Ballot(proposalNames)(initialContext, Address(2))
 
-    val ctx = initialContext.withMessage(Message.withoutWei(Address(5)))
-    ballot.requireInvariant(ctx)
+    ballot.requireInvariant(initialContext)
+
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            Address(5),
+            ballot.ownAddress,
+            ballot.giveRightToVote(Address(3)))))
 
     assertThrows[Exception] {
-      ballot.giveRightToVote(Address(3))(ctx)
+      script.run()
     }
   }
 
@@ -115,11 +148,19 @@ class BallotTest extends FunSuite {
     ballot.voters = ballot.voters + (Address(3) -> Ballot.Voter(Address(3), 1, None, Some(2)))
     ballot.proposals = Updater.updated(ballot.proposals, 2, ((p: Ballot.Proposal) => p.vote(1)))
 
-    val ctx = initialContext.withMessage(Message.withoutWei(initialContext.messageSender))
-    ballot.requireInvariant(ctx)
+    ballot.requireInvariant(initialContext)
+
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            ballot.chairPerson,
+            ballot.ownAddress,
+            ballot.giveRightToVote(Address(3)))))
 
     assertThrows[Exception] {
-      ballot.giveRightToVote(Address(3))(ctx)
+      script.run()
     }
   }
 
@@ -130,11 +171,19 @@ class BallotTest extends FunSuite {
         (Address(3) -> Ballot.Voter(Address(3), 1, Some(Address(5)), None)) +
         (Address(5) -> Ballot.Voter(Address(5), 1, None, None))
 
-    val ctx = initialContext.withMessage(Message.withoutWei(initialContext.messageSender))
-    ballot.requireInvariant(ctx)
+    ballot.requireInvariant(initialContext)
+
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            ballot.chairPerson,
+            ballot.ownAddress,
+            ballot.giveRightToVote(Address(3)))))
 
     assertThrows[Exception] {
-      ballot.giveRightToVote(Address(3))(ctx)
+      script.run()
     }
   }
 
@@ -143,10 +192,18 @@ class BallotTest extends FunSuite {
     ballot.voters = ballot.voters + (Address(3) -> Ballot.Voter(Address(3), 1))
 
     val sender = Address(3)
-    val ctx = initialContext.withMessage(Message.withoutWei(sender))
-    ballot.requireInvariant(ctx)
+    ballot.requireInvariant(initialContext)
 
-    val funcResult = ballot.delegate(Address(5))(ctx)
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            sender,
+            ballot.ownAddress,
+            ballot.delegate(Address(5)))))
+
+    val funcResult = script.run()
 
     assertResult(1) {
       ballot.voters(sender).weight
@@ -162,7 +219,7 @@ class BallotTest extends FunSuite {
       ballot.voters(Address(5)).voted
     }
 
-    assertResult(ctx.accountCollection) {
+    assertResult(initialContext.accountCollection) {
       funcResult.accountCollection
     }
   }
@@ -176,10 +233,18 @@ class BallotTest extends FunSuite {
     ballot.proposals = Updater.updated(ballot.proposals, 2, ((p: Ballot.Proposal) => p.vote(4)))
 
     val sender = Address(3)
-    val ctx = initialContext.withMessage(Message.withoutWei(sender))
-    ballot.requireInvariant(ctx)
+    ballot.requireInvariant(initialContext)
 
-    val funcResult = ballot.delegate(Address(5))(ctx)
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            sender,
+            ballot.ownAddress,
+            ballot.delegate(Address(5)))))
+
+    val funcResult = script.run()
 
     assertResult(1) {
       ballot.voters(sender).weight
@@ -195,7 +260,7 @@ class BallotTest extends FunSuite {
       ballot.voters(Address(5)).voted
     }
 
-    assertResult(ctx.accountCollection) {
+    assertResult(initialContext.accountCollection) {
       funcResult.accountCollection
     }
   }
@@ -205,15 +270,23 @@ class BallotTest extends FunSuite {
     ballot.voters = ballot.voters + (Address(3) -> Ballot.Voter(Address(3), 1))
 
     val sender = Address(3)
-    val ctx1 = initialContext.withMessage(Message.withoutWei(sender))
-    ballot.requireInvariant(ctx1)
+    ballot.requireInvariant(initialContext)
 
-    val funcResult1 = ballot.delegate(Address(5))(ctx1)
-
-    val ctx2 = FunctionCallContext(Message.withoutWei(sender), funcResult1.accountCollection)
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            sender,
+            ballot.ownAddress,
+            ballot.delegate(Address(5))),
+          FunctionCall.withoutWei(
+            sender,
+            ballot.ownAddress,
+            ballot.delegate(Address(5)))))
 
     assertThrows[Exception] {
-      ballot.delegate(Address(5))(ctx2)
+      script.run()
     }
   }
 
@@ -222,10 +295,18 @@ class BallotTest extends FunSuite {
     ballot.voters = ballot.voters + (Address(3) -> Ballot.Voter(Address(3), 5))
 
     val sender = Address(3)
-    val ctx = initialContext.withMessage(Message.withoutWei(sender))
-    ballot.requireInvariant(ctx)
+    ballot.requireInvariant(initialContext)
 
-    val funcResult = ballot.vote(2)(ctx)
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            sender,
+            ballot.ownAddress,
+            ballot.vote(2))))
+
+    val funcResult = script.run()
 
     assertResult(true) {
       ballot.voters(sender).votedDirectly
@@ -234,7 +315,7 @@ class BallotTest extends FunSuite {
       ballot.voters(sender).votedByDelegation
     }
 
-    assertResult(ctx.accountCollection) {
+    assertResult(initialContext.accountCollection) {
       funcResult.accountCollection
     }
   }
@@ -248,24 +329,31 @@ class BallotTest extends FunSuite {
         Vector[FunctionCall](
           FunctionCall.withoutWei(
             ballot.chairPerson,
+            ballot.ownAddress,
             ballot.giveRightToVote(Address(3))),
           FunctionCall.withoutWei(
             ballot.chairPerson,
+            ballot.ownAddress,
             ballot.giveRightToVote(Address(4))),
           FunctionCall.withoutWei(
             Address(4),
+            ballot.ownAddress,
             ballot.delegate(Address(5))),
           FunctionCall.withoutWei(
             ballot.chairPerson,
+            ballot.ownAddress,
             ballot.giveRightToVote(Address(6))),
           FunctionCall.withoutWei(
             Address(3),
+            ballot.ownAddress,
             ballot.vote(2)),
           FunctionCall.withoutWei(
             Address(5),
+            ballot.ownAddress,
             ballot.vote(2)),
           FunctionCall.withoutWei(
             Address(6),
+            ballot.ownAddress,
             ballot.vote(2))))
 
     val lastFuncResult = script.run()

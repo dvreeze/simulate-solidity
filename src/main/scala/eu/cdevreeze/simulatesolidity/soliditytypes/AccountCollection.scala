@@ -25,6 +25,14 @@ package eu.cdevreeze.simulatesolidity.soliditytypes
 final class AccountCollection(val accountsByAddress: Map[Address, Account]) {
   require(accountsByAddress forall { case (addr, acc) => acc.address == addr }, s"Corrupt account collection")
 
+  def updated(address: Address, f: Account => Account): AccountCollection = {
+    if (accountsByAddress.contains(address)) {
+      new AccountCollection(accountsByAddress.updated(address, f(accountsByAddress(address))))
+    } else {
+      this
+    }
+  }
+
   def send(from: Address, to: Address, amount: BigInt): Option[AccountCollection] = {
     require(amount >= 0, s"Negative amount $amount not allowed")
 

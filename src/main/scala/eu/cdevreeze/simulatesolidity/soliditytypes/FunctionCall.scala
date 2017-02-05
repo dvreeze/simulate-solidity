@@ -23,19 +23,46 @@ package eu.cdevreeze.simulatesolidity.soliditytypes
  */
 final class FunctionCall(
     val message: Message,
+    val recipient: Address,
     val funcCall: FunctionCallContext => HasAccountCollection) extends (AccountCollection => HasAccountCollection) {
 
+  require(message.messageSender != recipient, s"Message sender and recipient must not be the same")
+
+  /**
+   * Invokes this function call. If WEI is sent with the message, this WEI is transferred from the balance
+   * of the sender to the balance of the recipient contract account.
+   *
+   * No rollback behavior has been implemented in this simple simulation.
+   */
   def apply(accountCollection: AccountCollection): HasAccountCollection = {
-    funcCall(FunctionCallContext(message, accountCollection))
+    require(
+      accountCollection.accountsByAddress.get(message.messageSender).forall(_.balanceInWei >= message.messageValueInWei),
+      s"Insufficient balance for message sender ${message.messageSender}")
+
+    val updatedAccountCollection =
+      if (message.messageValueInWei == BigInt(0)) {
+        accountCollection
+      } else {
+        accountCollection.
+          updated(message.messageSender, _.subtractAmount(message.messageValueInWei)).
+          updated(recipient, _.addAmount(message.messageValueInWei))
+      }
+
+    funcCall(FunctionCallContext(message, updatedAccountCollection))
   }
 }
 
 object FunctionCall {
 
+  def apply(message: Message, recipient: Address, funcCall: FunctionCallContext => HasAccountCollection): FunctionCall = {
+    new FunctionCall(message, recipient, funcCall)
+  }
+
   def withoutWei(
     sender: Address,
+    recipient: Address,
     funcCall: FunctionCallContext => HasAccountCollection): FunctionCall = {
 
-    new FunctionCall(Message.withoutWei(sender), funcCall)
+    new FunctionCall(Message.withoutWei(sender), recipient, funcCall)
   }
 }

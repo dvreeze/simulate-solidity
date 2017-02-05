@@ -65,23 +65,35 @@ final class OpenAuction(
     // Improvement?
     withSenderOtherThan(highestBidderOption.toSet.union(pendingReturns.keySet))(context) { () =>
       notAfter(auctionEndTime)(context) { () =>
-        require(context.message.messageValueInWei > highestBid, s"Bid below highest bid. Does a refund.")
+        // If the bid is under the highest bid, enforce a rollback.
+        // require(context.message.messageValueInWei > highestBid, s"Bid below highest bid. Does a refund.")
 
-        if (highestBidderOption.isDefined) {
-          assert(highestBidderOption.get != context.messageSender)
+        // In order to test this code without implemented rollback behavior, we write the following:
+        if (context.message.messageValueInWei <= highestBid) {
+          logger.info(s"Below highest bid. Rolling back. Sender: ${context.messageSender}. Value: ${context.message.messageValueInWei}")
 
-          // Pull instead of push money transfer...
-          updatePendingReturns(highestBidderOption.get, (_ + highestBid))
+          // Rolling back...
+          val resultAccounts =
+            context.accountCollection.updated(context.messageSender, _.addAmount(context.message.messageValueInWei))
+
+          new FunctionResult((), resultAccounts)
+        } else {
+          if (highestBidderOption.isDefined) {
+            assert(highestBidderOption.get != context.messageSender)
+
+            // Pull instead of push money transfer...
+            updatePendingReturns(highestBidderOption.get, (_ + highestBid))
+          }
+
+          highestBidderOption = Some(context.messageSender)
+          highestBid = context.message.messageValueInWei // The calling infrastructure must pay this amount to the contract address!
+
+          logger.info(s"Highest bid increased. Sender: ${context.messageSender}. Value: ${highestBid}")
+
+          FunctionResult.fromCallContextOnly(context)
         }
-
-        highestBidderOption = Some(context.messageSender)
-        highestBid = context.message.messageValueInWei // The calling infrastructure must pay this amount to the contract address!
-
-        logger.info(s"Highest bid increased. Sender: ${context.messageSender}. Value: ${highestBid}")
       }
     }
-
-    FunctionResult.fromCallContextOnly(context)
   } ensuring (_ => requireInvariant(context))
 
   def withdraw()(context: FunctionCallContext): FunctionResult[Boolean] = this.synchronized {
@@ -91,10 +103,13 @@ final class OpenAuction(
       // This function can be called again...
       updatePendingReturns(context.messageSender, (_ => 0))
 
+      logger.info(s"Withdrawing bid. Sender: ${context.messageSender}.")
+
       val newContextOption = this.send(context.messageSender, amount)(context)
 
       if (newContextOption.isEmpty) {
         updatePendingReturns(context.messageSender, (_ => amount))
+
         FunctionResult.fromCallContextAndResult(context)(false)
       } else {
         FunctionResult.fromCallContextAndResult(newContextOption.get)(true)
@@ -137,6 +152,10 @@ final class OpenAuction(
   }
 
   private def updatePendingReturns(address: Address, f: BigInt => BigInt): Unit = {
-    pendingReturns = Updater.updated(pendingReturns, address, f)
+    pendingReturns =
+      Updater.updated(
+        pendingReturns + (address -> pendingReturns.getOrElse(address, BigInt(0))),
+        address,
+        f)
   }
 }

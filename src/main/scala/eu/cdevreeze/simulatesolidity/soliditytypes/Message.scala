@@ -32,6 +32,10 @@ final class Message(
 
 object Message {
 
+  def apply(messageSender: Address, messageValueInWei: BigInt): Message = {
+    new Message(messageSender, messageValueInWei)
+  }
+
   def withoutWei(messageSender: Address): Message = {
     new Message(messageSender, 0)
   }
