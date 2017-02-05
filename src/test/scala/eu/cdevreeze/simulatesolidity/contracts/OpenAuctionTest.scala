@@ -20,8 +20,15 @@ import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 
-import eu.cdevreeze.simulatesolidity.collections._
-import eu.cdevreeze.simulatesolidity.soliditytypes._
+import eu.cdevreeze.simulatesolidity.soliditytypes.Account
+import eu.cdevreeze.simulatesolidity.soliditytypes.AccountCollection
+import eu.cdevreeze.simulatesolidity.soliditytypes.Address
+import eu.cdevreeze.simulatesolidity.soliditytypes.ContractAccount
+import eu.cdevreeze.simulatesolidity.soliditytypes.ExternalAccount
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCall
+import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionCallContext
+import eu.cdevreeze.simulatesolidity.soliditytypes.Message
+import eu.cdevreeze.simulatesolidity.soliditytypes.Script
 
 /**
  * Open auction test case.

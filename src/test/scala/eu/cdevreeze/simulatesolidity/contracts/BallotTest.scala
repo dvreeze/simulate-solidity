@@ -290,6 +290,65 @@ class BallotTest extends FunSuite {
     }
   }
 
+  test("testDelegateRepeatedly") {
+    val ballot: Ballot = new Ballot(proposalNames)(initialContext, Address(2))
+    ballot.voters =
+      ballot.voters +
+        (Address(3) -> Ballot.Voter(Address(3), 1)) +
+        (Address(6) -> Ballot.Voter(Address(6), 2))
+
+    ballot.requireInvariant(initialContext)
+
+    val script =
+      new Script(
+        initialContext,
+        Vector[FunctionCall](
+          FunctionCall.withoutWei(
+            Address(3),
+            ballot.ownAddress,
+            ballot.delegate(Address(5))),
+          FunctionCall.withoutWei(
+            Address(5),
+            ballot.ownAddress,
+            ballot.delegate(Address(6))),
+          FunctionCall.withoutWei(
+            Address(6),
+            ballot.ownAddress,
+            ballot.delegate(Address(7)))))
+
+    val funcResult = script.run()
+
+    assertResult(1) {
+      ballot.voters(Address(3)).weight
+    }
+    assertResult(1) {
+      ballot.voters(Address(5)).weight
+    }
+    assertResult(3) {
+      ballot.voters(Address(6)).weight
+    }
+    assertResult(3) {
+      ballot.voters(Address(7)).weight
+    }
+
+    assertResult(true) {
+      ballot.voters(Address(3)).votedByDelegation
+    }
+    assertResult(true) {
+      ballot.voters(Address(5)).votedByDelegation
+    }
+    assertResult(true) {
+      ballot.voters(Address(6)).votedByDelegation
+    }
+    assertResult(false) {
+      ballot.voters(Address(7)).voted
+    }
+
+    assertResult(initialContext.accountCollection) {
+      funcResult.accountCollection
+    }
+  }
+
   test("testVote") {
     val ballot: Ballot = new Ballot(proposalNames)(initialContext, Address(2))
     ballot.voters = ballot.voters + (Address(3) -> Ballot.Voter(Address(3), 5))
