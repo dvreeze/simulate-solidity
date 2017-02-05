@@ -74,7 +74,9 @@ final class OpenAuction(
 
           // Rolling back...
           val resultAccounts =
-            context.accountCollection.updated(context.messageSender, _.addAmount(context.message.messageValueInWei))
+            context.accountCollection.
+              updated(context.messageSender, _.addAmount(context.message.messageValueInWei)).
+              updated(ownAddress, _.subtractAmount(context.message.messageValueInWei))
 
           new FunctionResult((), resultAccounts)
         } else {

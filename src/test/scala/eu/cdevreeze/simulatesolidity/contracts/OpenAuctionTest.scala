@@ -40,6 +40,8 @@ class OpenAuctionTest extends FunSuite {
 
   private val addressCount = 10
 
+  private val contractAddress = Address(2)
+
   private def makeInitialContext(initialSender: Address): FunctionCallContext = {
     val accountMap = (1 to addressCount).map(i => (Address(i) -> getAccount(Address(i)))).toMap
 
@@ -51,7 +53,7 @@ class OpenAuctionTest extends FunSuite {
   }
 
   private def getAccount(addr: Address): Account = {
-    if (addr.addressValue == 2) {
+    if (addr == contractAddress) {
       ContractAccount(addr, 0)
     } else {
       ExternalAccount(addr, 100)
@@ -130,6 +132,22 @@ class OpenAuctionTest extends FunSuite {
 
     assertResult(initialContext.accountCollection.accountsByAddress(Address(6)).subtractAmount(90)) {
       lastFuncResult.accountCollection.accountsByAddress(Address(6))
+    }
+
+    // The money of the highest bidder is currently stored in the contract account (not yet paid to the beneficiary)
+
+    assertResult(initialContext.accountCollection.accountsByAddress(contractAddress).addAmount(90)) {
+      lastFuncResult.accountCollection.accountsByAddress(contractAddress)
+    }
+
+    assertResult(initialContext.accountCollection.accountsByAddress(beneficiary)) {
+      lastFuncResult.accountCollection.accountsByAddress(beneficiary)
+    }
+
+    // No money created out of thin air, nor any money lost
+
+    assertResult(initialContext.accountCollection.accountsByAddress.values.map(_.balanceInWei).sum) {
+      lastFuncResult.accountCollection.accountsByAddress.values.map(_.balanceInWei).sum
     }
   }
 }
