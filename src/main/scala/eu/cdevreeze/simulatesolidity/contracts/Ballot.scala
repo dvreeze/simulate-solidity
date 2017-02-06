@@ -16,6 +16,8 @@
 
 package eu.cdevreeze.simulatesolidity.contracts
 
+import java.util.logging.Logger
+
 import scala.collection.immutable
 
 import eu.cdevreeze.simulatesolidity.aspects.SenderAspects
@@ -37,6 +39,8 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionResult
 final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext: FunctionCallContext, val ownAddress: Address) extends Contract with SenderAspects {
   require(proposalNames.nonEmpty, s"There must be at least one proposal")
   require(proposalNames.distinct.size == proposalNames.size, s"All proposals must have different names")
+
+  private val logger: Logger = Logger.getGlobal
 
   // Proposals "table". It is mutable, but only the reference, whereas the snapshot itself is immutable.
   var proposals: immutable.IndexedSeq[Ballot.Proposal] = {
@@ -61,6 +65,8 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
 
       // Improvement over the original in order not to break the invariant: the weight never goes down.
       addOrUpdateVoter(voter, v => v.copy(weight = 1.max(v.weight)), addr => Ballot.Voter(addr))
+
+      logger.info(s"Voter $voter got the right to vote")
 
       FunctionResult.fromCallContextOnly(context)
     } ensuring { _ =>
@@ -92,6 +98,8 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
       updateProposal(lastDelegate.votedProposalIndexOption.get, p => p.copy(voteCount = p.voteCount + sender.weight))
     }
 
+    logger.info(s"Vote delegated by ${sender.address} to  ${lastDelegate.address}")
+
     FunctionResult.fromCallContextAndResult(context)(true) ensuring { _ =>
       requireInvariant(context)
     }
@@ -113,6 +121,9 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
     // On the EVM, if an exception is thrown at this point, the changes to storage are rolled back to the point before this function call.
 
     updateProposal(proposalIdx, _.vote(voter.weight))
+
+    logger.info(s"Voter ${voter.address} has just directly voted for proposal ${proposalIdx}")
+
     FunctionResult.fromCallContextOnly(context) ensuring (_ => requireInvariant(context))
   }
 

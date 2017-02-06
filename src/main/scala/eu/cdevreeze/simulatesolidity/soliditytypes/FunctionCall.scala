@@ -16,6 +16,10 @@
 
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
+import java.util.logging.Logger
+
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 /**
@@ -29,6 +33,8 @@ final class FunctionCall(
     val funcCall: FunctionCallContext => HasAccountCollection) extends (AccountCollection => HasAccountCollection) {
 
   require(message.messageSender != recipient, s"Message sender and recipient must not be the same")
+
+  private val logger: Logger = Logger.getGlobal
 
   /**
    * Invokes this function call. If WEI is sent with the message, this WEI is transferred from the balance
@@ -63,8 +69,12 @@ final class FunctionCall(
    * lock object.
    */
   def call(accountCollection: AccountCollection)(lockObject: AnyRef): HasAccountCollection = lockObject.synchronized {
-    Try(this(accountCollection)).toOption getOrElse {
-      new FunctionResult((), accountCollection)
+    Try(this(accountCollection)) match {
+      case Success(funcResult) =>
+        funcResult
+      case Failure(exc) =>
+        logger.warning(s"Rolling back. Exception: $exc")
+        new FunctionResult((), accountCollection)
     }
   }
 

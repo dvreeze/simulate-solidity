@@ -66,7 +66,9 @@ final class OpenAuction(
     withSenderOtherThan(highestBidderOption.toSet.union(pendingReturns.keySet))(context) { () =>
       notAfter(auctionEndTime)(context) { () =>
         // If the bid is under the highest bid, enforce a rollback.
-        require(context.message.messageValueInWei > highestBid, s"Bid below highest bid. Does a refund.")
+        require(
+          context.message.messageValueInWei > highestBid,
+          s"Bid ${context.message.messageValueInWei} below highest bid. Does a refund.")
 
         if (highestBidderOption.isDefined) {
           assert(highestBidderOption.get != context.messageSender)
