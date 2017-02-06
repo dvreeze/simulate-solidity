@@ -34,7 +34,7 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionResult
  *
  * See https://solidity.readthedocs.io/en/develop/solidity-by-example.html.
  *
- * The class is thread-safe.
+ * The class is NOT thread-safe.
  *
  * @author Chris de Vreeze
  */
@@ -61,44 +61,31 @@ final class OpenAuction(
   /**
    * Bid on the auction with the value sent with the transaction. This function is "payable".
    */
-  def bid()(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
+  def bid()(context: FunctionCallContext): FunctionResult[Unit] = {
     // Improvement?
     withSenderOtherThan(highestBidderOption.toSet.union(pendingReturns.keySet))(context) { () =>
       notAfter(auctionEndTime)(context) { () =>
         // If the bid is under the highest bid, enforce a rollback.
-        // require(context.message.messageValueInWei > highestBid, s"Bid below highest bid. Does a refund.")
+        require(context.message.messageValueInWei > highestBid, s"Bid below highest bid. Does a refund.")
 
-        // In order to test this code without implemented rollback behavior, we write the following:
-        if (context.message.messageValueInWei <= highestBid) {
-          logger.info(s"Below highest bid. Rolling back. Sender: ${context.messageSender}. Value: ${context.message.messageValueInWei}")
+        if (highestBidderOption.isDefined) {
+          assert(highestBidderOption.get != context.messageSender)
 
-          // Rolling back...
-          val resultAccounts =
-            context.accountCollection.
-              updated(context.messageSender, _.addAmount(context.message.messageValueInWei)).
-              updated(ownAddress, _.subtractAmount(context.message.messageValueInWei))
-
-          new FunctionResult((), resultAccounts)
-        } else {
-          if (highestBidderOption.isDefined) {
-            assert(highestBidderOption.get != context.messageSender)
-
-            // Pull instead of push money transfer...
-            updatePendingReturns(highestBidderOption.get, (_ + highestBid))
-          }
-
-          highestBidderOption = Some(context.messageSender)
-          highestBid = context.message.messageValueInWei // The calling infrastructure must pay this amount to the contract address!
-
-          logger.info(s"Highest bid increased. Sender: ${context.messageSender}. Value: ${highestBid}")
-
-          FunctionResult.fromCallContextOnly(context)
+          // Pull instead of push money transfer...
+          updatePendingReturns(highestBidderOption.get, (_ + highestBid))
         }
+
+        highestBidderOption = Some(context.messageSender)
+        highestBid = context.message.messageValueInWei // The calling infrastructure must pay this amount to the contract address!
+
+        logger.info(s"Highest bid increased. Sender: ${context.messageSender}. Value: ${highestBid}")
+
+        FunctionResult.fromCallContextOnly(context)
       }
     }
   } ensuring (_ => requireInvariant(context))
 
-  def withdraw()(context: FunctionCallContext): FunctionResult[Boolean] = this.synchronized {
+  def withdraw()(context: FunctionCallContext): FunctionResult[Boolean] = {
     val amount: BigInt = pendingReturns.getOrElse(context.messageSender, 0)
 
     if (amount > 0) {
@@ -121,7 +108,7 @@ final class OpenAuction(
     }
   } ensuring (_ => requireInvariant(context))
 
-  def endAuction()(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
+  def endAuction()(context: FunctionCallContext): FunctionResult[Unit] = {
     // Can everybody end the auction?
     notBefore(auctionEndTime)(context) { () =>
       require(!ended, s"The auction has already ended")

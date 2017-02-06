@@ -32,7 +32,7 @@ final class FunctionCall(
    * Invokes this function call. If WEI is sent with the message, this WEI is transferred from the balance
    * of the sender to the balance of the recipient contract account.
    *
-   * No rollback behavior has been implemented in this simple simulation.
+   * For transactional behavior, see class Script.
    */
   def apply(accountCollection: AccountCollection): HasAccountCollection = {
     require(

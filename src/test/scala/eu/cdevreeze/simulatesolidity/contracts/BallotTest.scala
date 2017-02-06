@@ -138,8 +138,8 @@ class BallotTest extends FunSuite {
             ballot.ownAddress,
             ballot.giveRightToVote(Address(3)))))
 
-    assertThrows[Exception] {
-      script.run()
+    assertResult(None) {
+      script.tryCallingFunction(script.functionCalls.head, script.initialContext.accountCollection).toOption
     }
   }
 
@@ -159,8 +159,8 @@ class BallotTest extends FunSuite {
             ballot.ownAddress,
             ballot.giveRightToVote(Address(3)))))
 
-    assertThrows[Exception] {
-      script.run()
+    assertResult(None) {
+      script.tryCallingFunction(script.functionCalls.head, script.initialContext.accountCollection).toOption
     }
   }
 
@@ -182,8 +182,8 @@ class BallotTest extends FunSuite {
             ballot.ownAddress,
             ballot.giveRightToVote(Address(3)))))
 
-    assertThrows[Exception] {
-      script.run()
+    assertResult(None) {
+      script.tryCallingFunction(script.functionCalls.head, script.initialContext.accountCollection).toOption
     }
   }
 
@@ -285,8 +285,10 @@ class BallotTest extends FunSuite {
             ballot.ownAddress,
             ballot.delegate(Address(5)))))
 
-    assertThrows[Exception] {
-      script.run()
+    val funcResult = script.run()
+
+    assertResult(true) {
+      ballot.voters(sender).votedByDelegation
     }
   }
 

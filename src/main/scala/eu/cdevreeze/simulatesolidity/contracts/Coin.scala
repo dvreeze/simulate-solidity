@@ -30,7 +30,7 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionResult
  *
  * See https://solidity.readthedocs.io/en/develop/introduction-to-smart-contracts.html.
  *
- * The class is thread-safe.
+ * The class is NOT thread-safe.
  *
  * @author Chris de Vreeze
  */
@@ -52,7 +52,7 @@ final class Coin(
   /**
    * Mints the given amount for the given receiver. Only callable by the minter.
    */
-  def mint(receiver: Address, amount: Int)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
+  def mint(receiver: Address, amount: Int)(context: FunctionCallContext): FunctionResult[Unit] = {
     withRequiredSender(minter)(context) { () =>
       updateBalance(receiver, (_.add(amount)))
 
@@ -63,7 +63,7 @@ final class Coin(
   /**
    * Sends the given amount of money (in "coins") to the given receiver.
    */
-  def send(receiver: Address, amount: Int)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
+  def send(receiver: Address, amount: Int)(context: FunctionCallContext): FunctionResult[Unit] = {
     require(amount >= 0, s"One cannot send a negative amount of money")
     require(receiver != context.messageSender, s"The receiver must differ from the sender ${context.messageSender}")
 

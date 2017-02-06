@@ -30,7 +30,7 @@ import eu.cdevreeze.simulatesolidity.soliditytypes.FunctionResult
  *
  * See https://solidity.readthedocs.io/en/develop/solidity-by-example.html.
  *
- * The class is thread-safe.
+ * The class is NOT thread-safe.
  *
  * @author Chris de Vreeze
  */
@@ -55,7 +55,7 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
   /**
    * Gives the given voter the right to vote. Only callable by the chair person.
    */
-  def giveRightToVote(voter: Address)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
+  def giveRightToVote(voter: Address)(context: FunctionCallContext): FunctionResult[Unit] = {
     withRequiredSender(chairPerson)(context) { () =>
       require(voters.get(voter).forall(v => !v.voted), s"Voter ${voter.addressValue} has already directly or indirectly voted")
 
@@ -71,7 +71,7 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
   /**
    * Delegates your vote to the given voter.
    */
-  def delegate(to: Address)(context: FunctionCallContext): FunctionResult[Boolean] = this.synchronized {
+  def delegate(to: Address)(context: FunctionCallContext): FunctionResult[Boolean] = {
     val sender = voters.getOrElse(context.messageSender, Ballot.Voter(context.messageSender))
 
     require(!sender.voted, s"Voter ${sender.address.addressValue} has already directly or indirectly voted")
@@ -100,7 +100,7 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
   /**
    * Gives your vote including the ones delegated to you to the given proposal.
    */
-  def vote(proposalIdx: Int)(context: FunctionCallContext): FunctionResult[Unit] = this.synchronized {
+  def vote(proposalIdx: Int)(context: FunctionCallContext): FunctionResult[Unit] = {
     require(proposalIdx >= 0 && proposalIdx < proposals.size, s"Proposal index $proposalIdx out of bounds")
 
     val voter = voters.getOrElse(context.messageSender, Ballot.Voter(context.messageSender))
@@ -116,12 +116,12 @@ final class Ballot(proposalNames: immutable.IndexedSeq[String])(val firstContext
     FunctionResult.fromCallContextOnly(context) ensuring (_ => requireInvariant(context))
   }
 
-  def winningProposal: Ballot.Proposal = this.synchronized {
+  def winningProposal: Ballot.Proposal = {
     // Sorting is expensive, of course.
     proposals.sortBy(_.voteCount).last
   }
 
-  def winnerName: String = this.synchronized {
+  def winnerName: String = {
     winningProposal.name
   }
 

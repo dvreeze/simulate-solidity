@@ -17,6 +17,7 @@
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
 import scala.collection.immutable
+import scala.util.Try
 
 /**
  * Script combining several function calls. The "smart contracts" are implicit.
@@ -27,12 +28,42 @@ final class Script(
     val initialContext: FunctionCallContext,
     val functionCalls: immutable.IndexedSeq[FunctionCall]) {
 
+  /**
+   * Invokes all function calls "transactionally". See method callFunction.
+   */
   def run(): HasAccountCollection = {
     val dummyFuncResult: HasAccountCollection = FunctionResult.fromCallContextOnly(initialContext)
 
     functionCalls.foldLeft(dummyFuncResult) {
       case (funcResult, funcCall) =>
-        funcCall(funcResult.accountCollection)
+        val newFuncResult = callFunction(funcCall, funcResult.accountCollection)
+        newFuncResult
     }
+  }
+
+  /**
+   * "Transactional" function call. It is somewhat ACID minus durability. It is atomic in that an exception
+   * rolls back the state to the previous function result and therefore account collection. It is isolated
+   * in that only one thread at a time can call this function on this script object. As a result, the
+   * state (mainly account collection) goes from consistent state to consistent state.
+   */
+  def callFunction(
+    functionCall: FunctionCall,
+    accountCollection: AccountCollection): HasAccountCollection = this.synchronized {
+
+    Try(functionCall(accountCollection)).toOption getOrElse {
+      new FunctionResult((), accountCollection)
+    }
+  }
+
+  /**
+   * Like method callFunction, but returns the result wrapped in a Try, thus giving access to any thrown
+   * exception.
+   */
+  def tryCallingFunction(
+    functionCall: FunctionCall,
+    accountCollection: AccountCollection): Try[HasAccountCollection] = this.synchronized {
+
+    Try(functionCall(accountCollection))
   }
 }
