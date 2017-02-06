@@ -139,7 +139,7 @@ class BallotTest extends FunSuite {
             ballot.giveRightToVote(Address(3)))))
 
     assertResult(None) {
-      script.tryCallingFunction(script.functionCalls.head, script.initialContext.accountCollection).toOption
+      script.functionCalls.head.tryCalling(script.initialContext.accountCollection)(script).toOption
     }
   }
 
@@ -160,7 +160,7 @@ class BallotTest extends FunSuite {
             ballot.giveRightToVote(Address(3)))))
 
     assertResult(None) {
-      script.tryCallingFunction(script.functionCalls.head, script.initialContext.accountCollection).toOption
+      script.functionCalls.head.tryCalling(script.initialContext.accountCollection)(script).toOption
     }
   }
 
@@ -183,7 +183,7 @@ class BallotTest extends FunSuite {
             ballot.giveRightToVote(Address(3)))))
 
     assertResult(None) {
-      script.tryCallingFunction(script.functionCalls.head, script.initialContext.accountCollection).toOption
+      script.functionCalls.head.tryCalling(script.initialContext.accountCollection)(script).toOption
     }
   }
 

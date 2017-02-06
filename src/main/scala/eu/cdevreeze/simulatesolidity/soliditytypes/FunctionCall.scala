@@ -16,6 +16,8 @@
 
 package eu.cdevreeze.simulatesolidity.soliditytypes
 
+import scala.util.Try
+
 /**
  * Function call. Function calls can be collected into a "script".
  *
@@ -32,7 +34,7 @@ final class FunctionCall(
    * Invokes this function call. If WEI is sent with the message, this WEI is transferred from the balance
    * of the sender to the balance of the recipient contract account.
    *
-   * For transactional behavior, see class Script.
+   * For transactional behavior, see the other methods.
    */
   def apply(accountCollection: AccountCollection): HasAccountCollection = {
     require(
@@ -49,6 +51,32 @@ final class FunctionCall(
       }
 
     funcCall(FunctionCallContext(message, updatedAccountCollection))
+  }
+
+  /**
+   * "Transactional" call of this function. It is somewhat ACID minus durability. It is atomic in that an exception
+   * rolls back the state to the previous function result and therefore account collection. It is isolated
+   * in that only one thread at a time can call this function on this script object. As a result, the
+   * state (mainly account collection) goes from consistent state to consistent state.
+   *
+   * To make isolation work, make sure that all potential simultaneous calls are protected by the same
+   * lock object.
+   */
+  def call(accountCollection: AccountCollection)(lockObject: AnyRef): HasAccountCollection = lockObject.synchronized {
+    Try(this(accountCollection)).toOption getOrElse {
+      new FunctionResult((), accountCollection)
+    }
+  }
+
+  /**
+   * Like method callFunction, but returns the result wrapped in a Try, thus giving access to any thrown
+   * exception.
+   *
+   * To make isolation work, make sure that all potential simultaneous calls are protected by the same
+   * lock object.
+   */
+  def tryCalling(accountCollection: AccountCollection)(lockObject: AnyRef): Try[HasAccountCollection] = lockObject.synchronized {
+    Try(this(accountCollection))
   }
 }
 
